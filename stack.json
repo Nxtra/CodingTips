@@ -1,0 +1,477 @@
+{
+    "StagesAvailable": [
+        "Original", 
+        "Processed"
+    ], 
+    "TemplateBody": {
+        "AWSTemplateFormatVersion": "2010-09-09", 
+        "Description": "Backend of CodingTips application", 
+        "Resources": {
+            "postTipsFunctionRole": {
+                "Type": "AWS::IAM::Role", 
+                "Properties": {
+                    "ManagedPolicyArns": [
+                        "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+                    ], 
+                    "Policies": [
+                        {
+                            "PolicyName": "postTipsFunctionRolePolicy0", 
+                            "PolicyDocument": {
+                                "Version": "2012-10-17", 
+                                "Statement": [
+                                    {
+                                        "Action": [
+                                            "dynamodb:DeleteItem", 
+                                            "dynamodb:GetItem", 
+                                            "dynamodb:PutItem", 
+                                            "dynamodb:UpdateItem"
+                                        ], 
+                                        "Resource": {
+                                            "Fn::Join": [
+                                                "", 
+                                                [
+                                                    "arn:aws:dynamodb:", 
+                                                    {
+                                                        "Ref": "AWS::Region"
+                                                    }, 
+                                                    ":", 
+                                                    {
+                                                        "Ref": "AWS::AccountId"
+                                                    }, 
+                                                    ":table/Tips"
+                                                ]
+                                            ]
+                                        }, 
+                                        "Effect": "Allow"
+                                    }
+                                ]
+                            }
+                        }
+                    ], 
+                    "AssumeRolePolicyDocument": {
+                        "Version": "2012-10-17", 
+                        "Statement": [
+                            {
+                                "Action": [
+                                    "sts:AssumeRole"
+                                ], 
+                                "Effect": "Allow", 
+                                "Principal": {
+                                    "Service": [
+                                        "lambda.amazonaws.com"
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            }, 
+            "getTipsFunctionRole": {
+                "Type": "AWS::IAM::Role", 
+                "Properties": {
+                    "ManagedPolicyArns": [
+                        "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+                    ], 
+                    "Policies": [
+                        {
+                            "PolicyName": "getTipsFunctionRolePolicy0", 
+                            "PolicyDocument": {
+                                "Version": "2012-10-17", 
+                                "Statement": [
+                                    {
+                                        "Action": [
+                                            "dynamodb:GetItem", 
+                                            "dynamodb:Scan"
+                                        ], 
+                                        "Resource": {
+                                            "Fn::Join": [
+                                                "", 
+                                                [
+                                                    "arn:aws:dynamodb:", 
+                                                    {
+                                                        "Ref": "AWS::Region"
+                                                    }, 
+                                                    ":", 
+                                                    {
+                                                        "Ref": "AWS::AccountId"
+                                                    }, 
+                                                    ":table/Tips"
+                                                ]
+                                            ]
+                                        }, 
+                                        "Effect": "Allow"
+                                    }
+                                ]
+                            }
+                        }
+                    ], 
+                    "AssumeRolePolicyDocument": {
+                        "Version": "2012-10-17", 
+                        "Statement": [
+                            {
+                                "Action": [
+                                    "sts:AssumeRole"
+                                ], 
+                                "Effect": "Allow", 
+                                "Principal": {
+                                    "Service": [
+                                        "lambda.amazonaws.com"
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            }, 
+            "CodingTipsApiDeploymentc3256d310a": {
+                "Type": "AWS::ApiGateway::Deployment", 
+                "Properties": {
+                    "RestApiId": {
+                        "Ref": "CodingTipsApi"
+                    }, 
+                    "Description": "RestApi deployment id: c3256d310a088dea7ad17f8e27238b924a0aa844", 
+                    "StageName": "Stage"
+                }
+            }, 
+            "CodingTipsApidefaultStage": {
+                "Type": "AWS::ApiGateway::Stage", 
+                "Properties": {
+                    "DeploymentId": {
+                        "Ref": "CodingTipsApiDeploymentc3256d310a"
+                    }, 
+                    "RestApiId": {
+                        "Ref": "CodingTipsApi"
+                    }, 
+                    "StageName": "default"
+                }
+            }, 
+            "CodingTipsDB": {
+                "Type": "AWS::DynamoDB::Table", 
+                "Properties": {
+                    "KeySchema": [
+                        {
+                            "KeyType": "HASH", 
+                            "AttributeName": "Author"
+                        }, 
+                        {
+                            "KeyType": "RANGE", 
+                            "AttributeName": "Date"
+                        }
+                    ], 
+                    "TableName": "Tips", 
+                    "AttributeDefinitions": [
+                        {
+                            "AttributeName": "Author", 
+                            "AttributeType": "S"
+                        }, 
+                        {
+                            "AttributeName": "Date", 
+                            "AttributeType": "N"
+                        }
+                    ], 
+                    "ProvisionedThroughput": {
+                        "WriteCapacityUnits": 1, 
+                        "ReadCapacityUnits": 1
+                    }
+                }
+            }, 
+            "CodingTipsUsagePlan": {
+                "Type": "AWS::ApiGateway::UsagePlan", 
+                "Properties": {
+                    "UsagePlanName": "CodingTips_UsagePlan", 
+                    "ApiStages": [
+                        {
+                            "ApiId": {
+                                "Ref": "CodingTipsApi"
+                            }, 
+                            "Stage": "default"
+                        }, 
+                        {
+                            "ApiId": {
+                                "Ref": "CodingTipsApi"
+                            }, 
+                            "Stage": "Stage"
+                        }
+                    ], 
+                    "Throttle": {
+                        "RateLimit": 5, 
+                        "BurstLimit": 5
+                    }, 
+                    "Description": "CodingTips Usage Plan for a maximum 500 requests per day", 
+                    "Quota": {
+                        "Limit": 500, 
+                        "Period": "DAY"
+                    }
+                }, 
+                "DependsOn": "CodingTipsApidefaultStage"
+            }, 
+            "postTipsFunction": {
+                "Type": "AWS::Lambda::Function", 
+                "Properties": {
+                    "Code": {
+                        "S3Bucket": "coding-tips", 
+                        "S3Key": "756e126cc472f25233ce27ee4257b2fe"
+                    }, 
+                    "FunctionName": "post-coding-tips", 
+                    "Tags": [
+                        {
+                            "Value": "SAM", 
+                            "Key": "lambda:createdBy"
+                        }
+                    ], 
+                    "MemorySize": 128, 
+                    "Environment": {
+                        "Variables": {
+                            "TABLE_NAME": "Tips"
+                        }
+                    }, 
+                    "Handler": "index.handler", 
+                    "Role": {
+                        "Fn::GetAtt": [
+                            "postTipsFunctionRole", 
+                            "Arn"
+                        ]
+                    }, 
+                    "Timeout": 30, 
+                    "Runtime": "nodejs8.10", 
+                    "Description": "A simple backend that writes to CodingTips database"
+                }
+            }, 
+            "getTipsFunctionGetApiPermissiondefault": {
+                "Type": "AWS::Lambda::Permission", 
+                "Properties": {
+                    "Action": "lambda:invokeFunction", 
+                    "Principal": "apigateway.amazonaws.com", 
+                    "FunctionName": {
+                        "Ref": "getTipsFunction"
+                    }, 
+                    "SourceArn": {
+                        "Fn::Sub": [
+                            "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/tips", 
+                            {
+                                "__Stage__": "default", 
+                                "__ApiId__": {
+                                    "Ref": "CodingTipsApi"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }, 
+            "postTipsFunctionPostApiPermissionTest": {
+                "Type": "AWS::Lambda::Permission", 
+                "Properties": {
+                    "Action": "lambda:invokeFunction", 
+                    "Principal": "apigateway.amazonaws.com", 
+                    "FunctionName": {
+                        "Ref": "postTipsFunction"
+                    }, 
+                    "SourceArn": {
+                        "Fn::Sub": [
+                            "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/tips", 
+                            {
+                                "__Stage__": "*", 
+                                "__ApiId__": {
+                                    "Ref": "CodingTipsApi"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }, 
+            "getTipsFunction": {
+                "Type": "AWS::Lambda::Function", 
+                "Properties": {
+                    "Code": {
+                        "S3Bucket": "coding-tips", 
+                        "S3Key": "d47d585eb5f7f9dba278c8a4383068eb"
+                    }, 
+                    "FunctionName": "get-coding-tips", 
+                    "Tags": [
+                        {
+                            "Value": "SAM", 
+                            "Key": "lambda:createdBy"
+                        }
+                    ], 
+                    "MemorySize": 128, 
+                    "Environment": {
+                        "Variables": {
+                            "TABLE_NAME": "Tips"
+                        }
+                    }, 
+                    "Handler": "index.handler", 
+                    "Role": {
+                        "Fn::GetAtt": [
+                            "getTipsFunctionRole", 
+                            "Arn"
+                        ]
+                    }, 
+                    "Timeout": 30, 
+                    "Runtime": "nodejs8.10", 
+                    "Description": "A simple backend that reads from CodingTips databasse"
+                }
+            }, 
+            "CodingTipsApi": {
+                "Type": "AWS::ApiGateway::RestApi", 
+                "Properties": {
+                    "Body": {
+                        "info": {
+                            "version": "1.0.0", 
+                            "description": "Gateway to CodingTips app", 
+                            "title": "CodingTipsAPI"
+                        }, 
+                        "paths": {
+                            "/tips": {
+                                "post": {
+                                    "x-amazon-apigateway-integration": {
+                                        "httpMethod": "POST", 
+                                        "type": "aws_proxy", 
+                                        "responses": {}, 
+                                        "uri": {
+                                            "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${postTipsFunction.Arn}/invocations"
+                                        }
+                                    }
+                                }, 
+                                "options": {
+                                    "x-amazon-apigateway-integration": {
+                                        "type": "mock", 
+                                        "requestTemplates": {
+                                            "application/json": "{\n  \"statusCode\" : 200\n}\n"
+                                        }, 
+                                        "responses": {
+                                            "default": {
+                                                "statusCode": "200", 
+                                                "responseTemplates": {
+                                                    "application/json": "{}\n"
+                                                }, 
+                                                "responseParameters": {
+                                                    "method.response.header.Access-Control-Allow-Origin": "'*'", 
+                                                    "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'", 
+                                                    "method.response.header.Access-Control-Allow-Headers": "'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range'"
+                                                }
+                                            }
+                                        }
+                                    }, 
+                                    "consumes": [
+                                        "application/json"
+                                    ], 
+                                    "summary": "CORS support", 
+                                    "responses": {
+                                        "200": {
+                                            "headers": {
+                                                "Access-Control-Allow-Origin": {
+                                                    "type": "string"
+                                                }, 
+                                                "Access-Control-Allow-Headers": {
+                                                    "type": "string"
+                                                }, 
+                                                "Access-Control-Allow-Methods": {
+                                                    "type": "string"
+                                                }
+                                            }, 
+                                            "description": "Default response for CORS method"
+                                        }
+                                    }, 
+                                    "produces": [
+                                        "application/json"
+                                    ]
+                                }, 
+                                "get": {
+                                    "x-amazon-apigateway-integration": {
+                                        "httpMethod": "POST", 
+                                        "passthroughBehavior": "when_no_match", 
+                                        "type": "aws", 
+                                        "responses": {
+                                            "default": {
+                                                "statusCode": 200, 
+                                                "responseParameters": {
+                                                    "method.response.header.Content-Type": "integration.response.header.content-type"
+                                                }
+                                            }
+                                        }, 
+                                        "uri": {
+                                            "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${getTipsFunction.Arn}/invocations"
+                                        }
+                                    }, 
+                                    "responses": {
+                                        "200": {
+                                            "headers": {
+                                                "Content-Type": {
+                                                    "type": "string"
+                                                }
+                                            }, 
+                                            "description": "200 response"
+                                        }
+                                    }, 
+                                    "produces": [
+                                        "application/json"
+                                    ]
+                                }
+                            }
+                        }, 
+                        "schemes": [
+                            "https"
+                        ], 
+                        "produces": [
+                            "application/json"
+                        ], 
+                        "swagger": "2.0", 
+                        "consumes": [
+                            "application/json"
+                        ]
+                    }, 
+                    "EndpointConfiguration": {
+                        "Types": [
+                            "REGIONAL"
+                        ]
+                    }, 
+                    "Parameters": {
+                        "endpointConfigurationTypes": "REGIONAL"
+                    }
+                }
+            }, 
+            "getTipsFunctionGetApiPermissionTest": {
+                "Type": "AWS::Lambda::Permission", 
+                "Properties": {
+                    "Action": "lambda:invokeFunction", 
+                    "Principal": "apigateway.amazonaws.com", 
+                    "FunctionName": {
+                        "Ref": "getTipsFunction"
+                    }, 
+                    "SourceArn": {
+                        "Fn::Sub": [
+                            "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/tips", 
+                            {
+                                "__Stage__": "*", 
+                                "__ApiId__": {
+                                    "Ref": "CodingTipsApi"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }, 
+            "postTipsFunctionPostApiPermissiondefault": {
+                "Type": "AWS::Lambda::Permission", 
+                "Properties": {
+                    "Action": "lambda:invokeFunction", 
+                    "Principal": "apigateway.amazonaws.com", 
+                    "FunctionName": {
+                        "Ref": "postTipsFunction"
+                    }, 
+                    "SourceArn": {
+                        "Fn::Sub": [
+                            "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/POST/tips", 
+                            {
+                                "__Stage__": "default", 
+                                "__ApiId__": {
+                                    "Ref": "CodingTipsApi"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}
