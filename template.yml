@@ -1,6 +1,17 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
 Description: Backend of CodingTips application
+Globals:
+  # The function environment variable is solely here for demonstration of how to define a global env var for functions
+  Function:
+    Environment:
+      Variables:
+        TABLE_NAME: Tips
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range'"
+      AllowOrigin: "'*'"
 Resources:
   getTipsFunction:
     Type: 'AWS::Serverless::Function'
@@ -8,16 +19,17 @@ Resources:
       FunctionName: get-coding-tips
       Handler: index.handler
       Runtime: nodejs8.10
+      Timeout: 30
       CodeUri: /Users/nivh/Training/aws/Serverless/CloudFormation/codingtips/get
       Description: A simple backend that reads from CodingTips databasse
       MemorySize: 128
-      Timeout: 10
       Policies:
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
               Action:
                 - 'dynamodb:GetItem'
+                - 'dynamodb:Scan'
               Resource:
                 'Fn::Join':
                   - ''
@@ -27,21 +39,22 @@ Resources:
                     - Ref: 'AWS::AccountId'
                     - ':table/Tips'
       Events:
-        Api1:
+        GetApi:
           Type: Api
           Properties:
             Path: /tips
             Method: GET
+            RestApiId: !Ref CodingTipsApi
   postTipsFunction:
     Type: 'AWS::Serverless::Function'
     Properties:
       FunctionName: post-coding-tips
       Handler: index.handler
       Runtime: nodejs8.10
+      Timeout: 30
       CodeUri: /Users/nivh/Training/aws/Serverless/CloudFormation/codingtips/post
       Description: A simple backend that writes to CodingTips database
       MemorySize: 128
-      Timeout: 10
       Policies:
         - Version: '2012-10-17'
           Statement:
@@ -60,12 +73,78 @@ Resources:
                     - Ref: 'AWS::AccountId'
                     - ':table/Tips'
       Events:
-        Api1:
+        PostApi:
           Type: Api
           Properties:
             Path: /tips
             Method: POST
-  TipsDB:
+            RestApiId: !Ref CodingTipsApi
+  CodingTipsApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: default
+      EndpointConfiguration: REGIONAL
+      DefinitionBody:
+        #it is commom practice to define the swagger of the DefinitionBody in a separate file
+        swagger: "2.0"
+        info:
+          version: 1.0.0
+          title: CodingTipsAPI
+          description: Gateway to CodingTips app
+        schemes:
+          - https
+        consumes:
+          - application/json
+        produces:
+          - application/json
+        paths:
+          /tips:
+            get:
+              responses:
+                '200':
+                  description: 200 response
+                  headers:
+                    Content-Type:
+                      type: string
+              produces:
+              - application/json
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${getTipsFunction.Arn}/invocations"
+                passthroughBehavior:  when_no_match
+                responses:
+                  default:
+                    statusCode: 200
+                    responseParameters:
+                      method.response.header.Content-Type: integration.response.header.content-type
+                httpMethod: POST
+                type: aws
+            post:
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${postTipsFunction.Arn}/invocations"
+                responses: {}
+                httpMethod: POST
+                type: aws_proxy
+  CodingTipsUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    #The UsagePlan has to depend on the Stage of your API which behind the scenes is referenced by YourAPINameStageNameStage
+    DependsOn: CodingTipsApidefaultStage
+    Properties:
+      ApiStages:
+      - ApiId: !Ref 'CodingTipsApi'
+        Stage: default
+      - ApiId: !Ref 'CodingTipsApi'
+        Stage: Stage
+      Description: CodingTips Usage Plan for a maximum 500 requests per day
+      Throttle:
+        BurstLimit: 5
+        RateLimit: 5
+      Quota:
+        Limit: 500
+        Period: DAY
+      UsagePlanName: CodingTips_UsagePlan
+  CodingTipsDB:
     Type: 'AWS::DynamoDB::Table'
     Properties:
       AttributeDefinitions:
@@ -73,6 +152,7 @@ Resources:
           AttributeType: S
         - AttributeName: Date
           AttributeType: N
+      #KeyType Hash is for Partition Key Range is for Sort Key
       KeySchema:
         - AttributeName: Author
           KeyType: HASH
@@ -82,4 +162,3 @@ Resources:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
       TableName: Tips
-

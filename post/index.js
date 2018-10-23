@@ -4,7 +4,10 @@ const AWS = require('aws-sdk')
 const docClient = new AWS.DynamoDB.DocumentClient({region: 'eu-west-1'})
 
 exports.handler = function(event, context, callback){
-    console.log('processing event: ' + JSON.stringify(event, null, 2))
+    console.log('processing event data: ' + JSON.stringify(event.body, null, 2))
+
+    let data = JSON.parse(event.body)
+    console.log('data is : ' + data)
 
     let currentMonth = new Date().getMonth() + 1
     let currentYear = new Date().getFullYear()
@@ -12,9 +15,9 @@ exports.handler = function(event, context, callback){
     let params =  {
         Item: {
             Date: Date.now(),
-            Author: event.author ? event.author : "Anonymous",
-            Tip: event.tip,
-            Category: event.category,
+            Author: data.author ? data.author : "Anonymous",
+            Tip: data.tip,
+            Category: data.category,
             MonthAttribute: currentMonth,
             YearAttribute: currentYear,
             YearMonthAttribute: currentYear + "-" + currentMonth
@@ -23,6 +26,8 @@ exports.handler = function(event, context, callback){
         TableName: 'Tips'
     };
 
+
+    console.log('Putting item in database : ' + JSON.stringify(params.Item))
     docClient.put(params, function(err,data){
         if(err) {
             callback(err, null)

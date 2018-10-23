@@ -1,7 +1,63 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Backend of CodingTips application
+Globals:
+  Api:
+    Cors:
+      AllowHeaders: '''DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range'''
+      AllowMethods: '''GET,POST,OPTIONS'''
+      AllowOrigin: '''*'''
+  Function:
+    Environment:
+      Variables:
+        TABLE_NAME: Tips
 Resources:
-  TipsDB:
+  CodingTipsApi:
+    Properties:
+      DefinitionBody:
+        consumes:
+        - application/json
+        info:
+          description: Gateway to CodingTips app
+          title: CodingTipsAPI
+          version: 1.0.0
+        paths:
+          /tips:
+            get:
+              produces:
+              - application/json
+              responses:
+                '200':
+                  description: 200 response
+                  headers:
+                    Content-Type:
+                      type: string
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                passthroughBehavior: when_no_match
+                responses:
+                  default:
+                    responseParameters:
+                      method.response.header.Content-Type: integration.response.header.content-type
+                    statusCode: 200
+                type: aws
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${getTipsFunction.Arn}/invocations
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                responses: {}
+                type: aws_proxy
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${postTipsFunction.Arn}/invocations
+        produces:
+        - application/json
+        schemes:
+        - https
+        swagger: '2.0'
+      EndpointConfiguration: REGIONAL
+      StageName: default
+    Type: AWS::Serverless::Api
+  CodingTipsDB:
     Properties:
       AttributeDefinitions:
       - AttributeName: Author
@@ -18,15 +74,36 @@ Resources:
         WriteCapacityUnits: 1
       TableName: Tips
     Type: AWS::DynamoDB::Table
+  CodingTipsUsagePlan:
+    DependsOn: CodingTipsApidefaultStage
+    Properties:
+      ApiStages:
+      - ApiId:
+          Ref: CodingTipsApi
+        Stage: default
+      - ApiId:
+          Ref: CodingTipsApi
+        Stage: Stage
+      Description: CodingTips Usage Plan for a maximum 500 requests per day
+      Quota:
+        Limit: 500
+        Period: DAY
+      Throttle:
+        BurstLimit: 5
+        RateLimit: 5
+      UsagePlanName: CodingTips_UsagePlan
+    Type: AWS::ApiGateway::UsagePlan
   getTipsFunction:
     Properties:
       CodeUri: s3://coding-tips/d47d585eb5f7f9dba278c8a4383068eb
       Description: A simple backend that reads from CodingTips databasse
       Events:
-        Api1:
+        GetApi:
           Properties:
             Method: GET
             Path: /tips
+            RestApiId:
+              Ref: CodingTipsApi
           Type: Api
       FunctionName: get-coding-tips
       Handler: index.handler
@@ -35,6 +112,7 @@ Resources:
       - Statement:
         - Action:
           - dynamodb:GetItem
+          - dynamodb:Scan
           Effect: Allow
           Resource:
             Fn::Join:
@@ -46,17 +124,19 @@ Resources:
               - :table/Tips
         Version: '2012-10-17'
       Runtime: nodejs8.10
-      Timeout: 10
+      Timeout: 30
     Type: AWS::Serverless::Function
   postTipsFunction:
     Properties:
-      CodeUri: s3://coding-tips/1a7a0315c029b9d7d8ab3d03188521dc
+      CodeUri: s3://coding-tips/756e126cc472f25233ce27ee4257b2fe
       Description: A simple backend that writes to CodingTips database
       Events:
-        Api1:
+        PostApi:
           Properties:
             Method: POST
             Path: /tips
+            RestApiId:
+              Ref: CodingTipsApi
           Type: Api
       FunctionName: post-coding-tips
       Handler: index.handler
@@ -79,6 +159,6 @@ Resources:
               - :table/Tips
         Version: '2012-10-17'
       Runtime: nodejs8.10
-      Timeout: 10
+      Timeout: 30
     Type: AWS::Serverless::Function
 Transform: AWS::Serverless-2016-10-31
